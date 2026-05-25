@@ -1,10 +1,60 @@
-# BSTFormer
+# BSTFormer for Video Snapshot Compressive Imaging
 
-Config-driven BSTFormer codebase for video snapshot compressive imaging.
+This repository provides a config-driven BSTFormer implementation for video
+snapshot compressive imaging (SCI). The codebase follows a STFormer-style
+layout: experiment settings are stored in `configs/`, executable scripts are
+stored in `tools/`, and reusable modules are organized under `bstformer/`.
 
-The project is organized in a STFormer-style layout: experiment settings live in
-`configs/`, executable entry points live in `tools/`, and reusable code lives in
-the `bstformer/` package.
+---
+
+> Video snapshot compressive imaging reconstructs high-speed video frames from
+> a single compressed measurement. BSTFormer uses a reconstruction network with
+> spatial-temporal Transformer blocks and Bayer-aware initialization support for
+> SCI reconstruction experiments. This repository contains training, grayscale
+> simulation testing, FLOPs profiling, pretrained checkpoint loading, and common
+> SCI utilities.
+
+---
+
+## Network Architecture
+
+The main model is registered as `BSTFormer` and implemented in:
+
+```text
+bstformer/models/network.py
+```
+
+The default experiment config is:
+
+```text
+configs/BSTFormer/bstformer_base.py
+```
+
+Important config fields:
+
+```python
+model = dict(type="BSTFormer", color_channels=1, units=4, dim=48)
+checkpoints = "checkpoints/bstformer_base.pth"
+work_dir = "work_dirs/bstformer_base"
+```
+
+## Installation
+
+Create and activate a conda environment:
+
+```bash
+conda create -n bstformer python=3.10
+conda activate bstformer
+```
+
+Install a CUDA-enabled PyTorch version that matches your GPU and CUDA runtime.
+Then install the remaining dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+The prepared local environment used during development is named `bstformer`.
 
 ## Project Layout
 
@@ -13,95 +63,41 @@ BSTFormer/
 |-- bstformer/
 |   |-- datasets/        # Dataset registry and dataset implementations
 |   |-- models/          # Model registry and BSTFormer network
-|   `-- utils/           # Config, registry, checkpoint, metrics, masks, logging
+|   `-- utils/           # Config, checkpoint, metrics, masks, logging
 |-- configs/
-|   |-- _base_/          # Shared runtime/data config fragments
+|   |-- _base_/          # Shared runtime and data config fragments
 |   `-- BSTFormer/       # BSTFormer experiment configs
 |-- tools/
 |   |-- train.py         # Training entry
 |   |-- test.py          # Simulation testing entry
-|   |-- flops.py         # FLOPs / parameter profiling
+|   |-- flops.py         # FLOPs and parameter profiling
 |   `-- dist_train.sh    # Multi-GPU training launcher
 |-- checkpoints/         # Pretrained weights
-|-- test_datasets/       # Simulation benchmark data
-|-- mask/                # Optional file-mask data
+|-- test_datasets/       # Grayscale simulation benchmark data
+|-- mask/                # Mask files
 `-- requirements.txt
 ```
 
-## Environment
-
-Use the prepared conda environment:
-
-```powershell
-conda activate bstformer
-```
-
-Install dependencies if needed:
-
-```powershell
-pip install -r requirements.txt
-```
-
-The project expects PyTorch with CUDA for GPU runs.
-
-## Main Config
-
-Default experiment config:
-
-```text
-configs/BSTFormer/bstformer_base.py
-```
-
-Important fields:
-
-```python
-model = dict(type="BSTFormer", color_channels=1, units=4, dim=48)
-checkpoints = "checkpoints/bstformer_base.pth"
-work_dir = "work_dirs/bstformer_base"
-```
-
-Shared defaults are inherited from:
-
-```text
-configs/_base_/default_runtime.py
-configs/_base_/simulation_data.py
-configs/_base_/davis_aug.py
-```
-
-## Simulation Test
-
-Run the six grayscale simulation benchmarks:
-
-```powershell
-python tools/test.py configs/BSTFormer/bstformer_base.py
-```
-
-Outputs are written under:
-
-```text
-work_dirs/bstformer_base/test_log/
-work_dirs/bstformer_base/test_results_vis/
-```
-
-Expected output includes `psnr_mean` and `ssim_mean`.
-
 ## Training
 
-Before training, update the DAVIS path in:
+Support single-GPU and multi-GPU training. First download the DAVIS training
+dataset, then modify `data_root` in:
 
 ```text
 configs/_base_/davis_aug.py
 ```
 
-Specifically:
+Make sure `data_root` points to your local training image directory:
 
 ```python
 train_data = dict(
+    type="DavisAugData",
     data_root="path/to/DAVIS/DAVIS-480/JPEGImages/480p",
+    in_channs=1,
 )
 ```
 
-The default training mask config currently expects:
+The default training mask uses the included mask file:
 
 ```python
 train_mask = dict(
@@ -113,16 +109,27 @@ train_mask = dict(
 )
 ```
 
-The repository includes `mask/mask.mat`; change `train_mask.mask_path` only if
-you want to use another training mask.
+Launch single-GPU training:
 
-Single-GPU training:
-
-```powershell
+```bash
 python tools/train.py configs/BSTFormer/bstformer_base.py
 ```
 
-Training outputs are written under:
+Launch multi-GPU training:
+
+```bash
+bash tools/dist_train.sh
+```
+
+The current distributed launcher is:
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.launch --nproc_per_node=4 --master_port=3278 tools/train.py configs/BSTFormer/bstformer_base.py --distributed
+```
+
+Adjust `CUDA_VISIBLE_DEVICES` and `--nproc_per_node` for your machine.
+
+Training outputs are saved to:
 
 ```text
 work_dirs/bstformer_base/log/
@@ -131,45 +138,48 @@ work_dirs/bstformer_base/train_images/
 work_dirs/bstformer_base/checkpoints/
 ```
 
-Saved checkpoints use this format:
+Resume training from a saved checkpoint:
 
-```python
-{
-    "epoch": epoch,
-    "model_state_dict": model.state_dict(),
-    "optim_state_dict": optimizer.state_dict(),
-}
-```
-
-Resume training:
-
-```powershell
+```bash
 python tools/train.py configs/BSTFormer/bstformer_base.py --resume work_dirs/bstformer_base/checkpoints/epoch_10.pth
 ```
 
-## Multi-GPU Training
+## Testing BSTFormer on Grayscale Simulation Dataset
 
-Linux/bash launcher:
+The repository includes six grayscale simulation benchmark files under
+`test_datasets/simulation/` and a pretrained checkpoint at
+`checkpoints/bstformer_base.pth`.
 
-```bash
-bash tools/dist_train.sh
-```
-
-Current launcher:
+Run simulation testing:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.launch --nproc_per_node=4 --master_port=3278 tools/train.py configs/BSTFormer/bstformer_base.py --distributed
+python tools/test.py configs/BSTFormer/bstformer_base.py
 ```
 
-Adjust `CUDA_VISIBLE_DEVICES` and `--nproc_per_node` for your machine.
+Or specify checkpoint weights explicitly:
+
+```bash
+python tools/test.py configs/BSTFormer/bstformer_base.py --weights checkpoints/bstformer_base.pth
+```
+
+Testing outputs are saved to:
+
+```text
+work_dirs/bstformer_base/test_log/
+work_dirs/bstformer_base/test_results_vis/
+```
+
+`tools/test.py` reports final reconstruction PSNR and SSIM.
 
 ## FLOPs / Parameters
 
-```powershell
+Profile FLOPs and parameter counts:
+
+```bash
 python tools/flops.py configs/BSTFormer/bstformer_base.py
 ```
 
-The input shape is controlled by:
+The profiling input shape is controlled by:
 
 ```python
 profile = dict(
@@ -180,15 +190,22 @@ profile = dict(
 )
 ```
 
-## Work Directory
+## Checkpoints and Data
 
-`work_dirs/` contains generated experiment outputs. It is safe to delete when
-you want a clean workspace; it will be recreated automatically by training or
-testing.
+- `checkpoints/bstformer_base.pth` is the default pretrained model.
+- `mask/mask.mat` is the default mask file.
+- `test_datasets/simulation/` contains the default grayscale simulation data.
+- `work_dirs/` stores generated logs, visualizations, TensorBoard files, and
+  checkpoints. It is ignored by git and can be deleted safely.
 
-## Notes
+## Citation
 
-- `tools/test.py` reports final reconstruction PSNR/SSIM, not PSNR gain.
-- `checkpoints/bstformer_base.pth` is the default pretrained model for simulation testing.
-- `test_datasets/simulation/` contains the default six benchmark `.mat` files.
-- The model registry name is `BSTFormer`; set `model.type="BSTFormer"` in configs.
+If this code or model helps your work, please cite the corresponding BSTFormer
+paper when it is available.
+
+Related video SCI projects:
+
+```text
+EfficientSCI++: https://github.com/mcao92/EfficientSCI-plus-plus
+STFormer:      https://github.com/ucaswangls/STFormer
+```
