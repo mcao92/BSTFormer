@@ -1,24 +1,24 @@
-# BSTFormer for Video Snapshot Compressive Imaging
+# Sparse Transformer for Ultra-Sparse Sampled Video Compressive Sensing
 
-This repository provides a config-driven BSTFormer implementation for video
-snapshot compressive imaging (SCI). The codebase follows a STFormer-style
-layout: experiment settings are stored in `configs/`, executable scripts are
-stored in `tools/`, and reusable modules are organized under `bstformer/`.
+Miao Cao, Siming Zheng, Lishun Wang, Ziyang Chen, David Brady and Xin Yuan
+
+IEEE Transactions on Multimedia, 2026
+
+[[Paper]](https://doi.org/10.1109/TMM.2025.3639993)
 
 ---
 
 > Video snapshot compressive imaging reconstructs high-speed video frames from
-> a single compressed measurement. BSTFormer uses a reconstruction network with
-> spatial-temporal Transformer blocks and Bayer-aware initialization support for
-> SCI reconstruction experiments. This repository contains training, grayscale
-> simulation testing, FLOPs profiling, pretrained checkpoint loading, and common
-> SCI utilities.
+> a single compressed measurement. This repository provides the BSTFormer code
+> for ultra-sparse sampled video compressive sensing, including training,
+> grayscale simulation testing, FLOPs profiling, pretrained checkpoint loading,
+> and common SCI utilities.
 
 ---
 
 ## Network Architecture
 
-The main model is registered as `BSTFormer` and implemented in:
+The BSTFormer model is registered as `BSTFormer` and implemented in:
 
 ```text
 bstformer/models/network.py
@@ -200,8 +200,19 @@ profile = dict(
 
 ## Citation
 
-If this code or model helps your work, please cite the corresponding BSTFormer
-paper when it is available.
+If this code or model helps your work, please cite our paper:
+
+```bibtex
+@article{cao2026sparse,
+  title={Sparse Transformer for Ultra-Sparse Sampled Video Compressive Sensing},
+  author={Cao, Miao and Zheng, Siming and Wang, Lishun and Chen, Ziyang and Brady, David and Yuan, Xin},
+  journal={IEEE Transactions on Multimedia},
+  volume={28},
+  pages={1730--1743},
+  year={2026},
+  doi={10.1109/TMM.2025.3639993}
+}
+```
 
 Related video SCI projects:
 
