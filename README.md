@@ -6,38 +6,6 @@ IEEE Transactions on Multimedia, 2026
 
 [[Paper]](https://doi.org/10.1109/TMM.2025.3639993)
 
----
-
-> Video snapshot compressive imaging reconstructs high-speed video frames from
-> a single compressed measurement. This repository provides the BSTFormer code
-> for ultra-sparse sampled video compressive sensing, including training,
-> grayscale simulation testing, FLOPs profiling, pretrained checkpoint loading,
-> and common SCI utilities.
-
----
-
-## Network Architecture
-
-The BSTFormer model is registered as `BSTFormer` and implemented in:
-
-```text
-bstformer/models/network.py
-```
-
-The default experiment config is:
-
-```text
-configs/BSTFormer/bstformer_base.py
-```
-
-Important config fields:
-
-```python
-model = dict(type="BSTFormer", color_channels=1, units=4, dim=48)
-checkpoints = "checkpoints/bstformer_base.pth"
-work_dir = "work_dirs/bstformer_base"
-```
-
 ## Installation
 
 Create and activate a conda environment:
@@ -210,13 +178,5 @@ If this code or model helps your work, please cite our paper:
   volume={28},
   pages={1730--1743},
   year={2026},
-  doi={10.1109/TMM.2025.3639993}
 }
-```
-
-Related video SCI projects:
-
-```text
-EfficientSCI++: https://github.com/mcao92/EfficientSCI-plus-plus
-STFormer:      https://github.com/ucaswangls/STFormer
 ```
